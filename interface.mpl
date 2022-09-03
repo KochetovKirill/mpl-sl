@@ -5,12 +5,19 @@
 # It is forbidden to use the content or any part of it for any purpose without explicit permission from the owner.
 # By contributing to the repository, contributors acknowledge that ownership of their work transfers to the owner.
 
+"algorithm.each" use
+"algorithm.findOrdinal" use
 "control.Natx" use
 "control.Ref" use
+"control.assert" use
+"control.bind" use
 "control.drop" use
 "control.dup" use
+"control.isBuiltinTuple" use
 "control.isVirtual" use
 "control.pfunc" use
+"control.times" use
+"control.unwrap" use
 "control.when" use
 "control.while" use
 
@@ -90,12 +97,12 @@ interface: [
 ];
 
 implement: [
-  getBase: getObject:;;
+  interfacesToImplement: getObject:;;
 
   {
-    virtual Base: getBase Ref;
+    virtual interfaces: ((interfacesToImplement) [Ref] each);
     virtual getObject: @getObject;
-    vtable: @Base.@vtable newVarOfTheSameType;
+    vtables: (interfaces [.@vtable newVarOfTheSameType] each);
 
     CALL: [
       moveFields: [
@@ -110,11 +117,19 @@ implement: [
       index: 0;
 
       {
-        base: {
-          virtual Base: @Base;
-          vtable: @vtable;
-          CALL: [@self storageAddress @Base addressToReference];
-        };
+        bases: (interfaces fieldCount [{
+          virtual Base: i @interfaces @;
+          vtable: i @vtables @;
+          CALL: [@closure storageAddress @Base addressToReference];
+        }] times);
+
+        castToBase: (interfaces bases new) [
+          interfaces: bases: unwrap;;
+          baseType: Ref;
+          @interfaces [ baseType same] findOrdinal index:;
+          index -1 = ["fail" raiseStaticError] when
+          index @bases @ call
+        ] bind;
 
         @moveFields ucall
       }
@@ -122,13 +137,16 @@ implement: [
 
     [
       virtual Object: CALL Ref;
-      [@Object addressToReference manuallyDestroyVariable] @vtable.!DIE_FUNC
-      [drop @Object storageSize] @vtable.!SIZE
-      i: 2; [i @vtable fieldCount = ~] [
-        virtual NAME: @vtable i fieldName;
-        [@Object addressToReference NAME callField] i @vtable !
-        i 1 + !i
-      ] while
+      @vtables [
+        vtable:;
+        [@Object addressToReference manuallyDestroyVariable] @vtable.!DIE_FUNC
+        [drop @Object storageSize] @vtable.!SIZE
+        i: 2; [i @vtable fieldCount = ~] [
+          virtual NAME: @vtable i fieldName;
+          [@Object addressToReference NAME callField] i @vtable !
+          i 1 + !i
+        ] while
+      ] each
     ] call
   }
 ];

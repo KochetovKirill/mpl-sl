@@ -51,8 +51,9 @@ OwnerWithDestructor: [{
   ];
 
   lower: [
+    baseType:;
     [valid?] "invalid Owner" assert
-    base: @memory.base;
+    base: @baseType @memory.castToBase;
     @elementType Ref !memory
     result: @base Owner;
     @base @result.!memory
