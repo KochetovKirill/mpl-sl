@@ -64,7 +64,7 @@ interface: [
       DIE_FUNC: {self: Natx;} {} {} codeRef;
       [drop] !DIE_FUNC
       SIZE: {self: Natx;} Natx {} codeRef;
-      BEGIN_ADDRESS: Natx;
+      ADDRESS_OFFSET: Natx;
       @fillVtable ucall
     };
 
@@ -72,11 +72,11 @@ interface: [
       fillMethods: [
         index @Vtable fieldCount = [] [
           @Vtable index fieldName "CALL" = [
-            [vtable.BEGIN_ADDRESS @vtable.CALL]
+            [@closure storageAddress vtable.ADDRESS_OFFSET - @vtable.CALL]
           ] [
             {
               virtual NAME: @Vtable index fieldName;
-              CALL: [vtable.BEGIN_ADDRESS @vtable NAME callField];
+              CALL: [@self storageAddress vtable.ADDRESS_OFFSET - @vtable NAME callField];
             }
           ] if
 
@@ -90,7 +90,7 @@ interface: [
 
       {
         vtable: @Vtable;
-        DIE: [vtable.BEGIN_ADDRESS @vtable.DIE_FUNC];
+        DIE: [@closure storageAddress vtable.ADDRESS_OFFSET - @vtable.DIE_FUNC];
         @fillMethods ucall
       }
     ];
@@ -126,14 +126,20 @@ implement: [
 
         bases: createBases;
 
+        [
+          size: 0nx;
+          @bases [
+            base:;
+            size new @base.@vtable.!ADDRESS_OFFSET
+            size base storageSize + !size
+          ] each
+        ] call
+
         castToBase: [
           baseType: Ref;
           @interfaces [baseType same] findOrdinal index:;
           index -1 = ["fail" raiseStaticError] when
           base: index @bases @;
-          size: 0nx;
-          index [size i bases @ storageSize + !size] times
-          base storageAddress size - @base.@vtable.!BEGIN_ADDRESS
           base storageAddress index @interfaces @ addressToReference
         ];
 
