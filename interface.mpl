@@ -64,6 +64,7 @@ interface: [
       DIE_FUNC: {self: Natx;} {} {} codeRef;
       [drop] !DIE_FUNC
       SIZE: {self: Natx;} Natx {} codeRef;
+      BEGIN_ADDRESS: Natx;
       @fillVtable ucall
     };
 
@@ -71,11 +72,11 @@ interface: [
       fillMethods: [
         index @Vtable fieldCount = [] [
           @Vtable index fieldName "CALL" = [
-            [@closure storageAddress @vtable.CALL]
+            [vtable.BEGIN_ADDRESS @vtable.CALL]
           ] [
             {
               virtual NAME: @Vtable index fieldName;
-              CALL: [@self storageAddress @vtable NAME callField];
+              CALL: [vtable.BEGIN_ADDRESS @vtable NAME callField];
             }
           ] if
 
@@ -89,7 +90,7 @@ interface: [
 
       {
         vtable: @Vtable;
-        DIE: [@closure storageAddress @vtable.DIE_FUNC];
+        DIE: [vtable.BEGIN_ADDRESS @vtable.DIE_FUNC];
         @fillMethods ucall
       }
     ];
@@ -104,6 +105,10 @@ implement: [
     virtual getObject: @getObject;
     vtables: (interfaces [.@vtable newVarOfTheSameType] each);
 
+    createBases: [
+      (@vtables [{vtable:;}] each)
+    ];
+
     CALL: [
       moveFields: [
         index @object fieldCount = [] [
@@ -117,19 +122,20 @@ implement: [
       index: 0;
 
       {
-        bases: (interfaces fieldCount [{
-          virtual Base: i @interfaces @;
-          vtable: i @vtables @;
-          CALL: [@closure storageAddress @Base addressToReference];
-        }] times);
+        virtual interfaces: @interfaces;
 
-        castToBase: (interfaces bases new) [
-          interfaces: bases: unwrap;;
+        bases: createBases;
+
+        castToBase: [
           baseType: Ref;
-          @interfaces [ baseType same] findOrdinal index:;
+          @interfaces [baseType same] findOrdinal index:;
           index -1 = ["fail" raiseStaticError] when
-          index @bases @ call
-        ] bind;
+          base: index @bases @;
+          size: 0nx;
+          index [size i bases @ storageSize + !size] times
+          base storageAddress size - @base.@vtable.!BEGIN_ADDRESS
+          base storageAddress index @interfaces @ addressToReference
+        ];
 
         @moveFields ucall
       }
@@ -141,7 +147,7 @@ implement: [
         vtable:;
         [@Object addressToReference manuallyDestroyVariable] @vtable.!DIE_FUNC
         [drop @Object storageSize] @vtable.!SIZE
-        i: 2; [i @vtable fieldCount = ~] [
+        i: 3; [i @vtable fieldCount = ~] [
           virtual NAME: @vtable i fieldName;
           [@Object addressToReference NAME callField] i @vtable !
           i 1 + !i
